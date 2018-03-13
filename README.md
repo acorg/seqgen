@@ -111,6 +111,7 @@ Note: in JSON parlance, "object" is what Python programmers call a
 using "object". If you're more comfortable thinking of the JSON as having
 "dicts", go right ahead.
 
+<a id="convenience"></a>
 The `variables` section is optional. For convenience, if no `variables`
 section is given, the JSON may simply be a `list` of sequence objects.
 
@@ -153,12 +154,15 @@ object will get you a sequence of the default length, with a default id,
 composed of random nucleotides. Hence:
 
 ```sh
-$ echo '[{},{}]' | seq-gen.py --defaultLength 60
+$ echo '[{},{}]' | seq-gen.py
 >seq-id-1
-TGTATGAAGCCATAGATTTTCATGAATAGGTAGTACTATCAGGGCTTGTGTCCGCCCCAC
+ACTCGTGCTATAGGGCGAATATCGCAAAATGCTCACATACCCAATAGCTTAGGAATAGTTCCTGTCGGGGCGCTCGTTGATTTAAGTCAATGAGCATCCT
 >seq-id-2
-CTTCGCCGTGCGCGTGCTAGACTCACCTTCCAACCAGGCTAAGCAGATTGAACCGCCTCG
+CTTGAGATGATTCGGCAACGTTAGCCGATAGATCATGGAAGGAATACGGCTAAAATATTCAGGTAATTAATGGATACGTCCTAGATAAGTAGAATCGAAT
 ```
+
+(Note that this example takes advantage of the convenience <a
+href="#convenience">mentioned above</a>).
 
 Although the code will complain about unknown keys, it does not detect
 cases where you specify a sequence in two different ways. You'll have to
