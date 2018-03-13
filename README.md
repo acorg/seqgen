@@ -153,15 +153,6 @@ play around and/or read the code in
 [seqgen/sequences.py](seqgen/sequences.py) to see the order in which the
 various sequence specification keys are acted on.
 
-## Generate sequences from the command line
-
-Run `seqgen.py --help` to see currently supported options:
-
-```sh
-$ seqgen.py --help
-```
-
-
 ## Development
 
 To run the tests:
