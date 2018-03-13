@@ -24,6 +24,7 @@ class Sequences(object):
     DEFAULT_ID_PREFIX = 'seq-id-'
     LEGAL_SPEC_KEYS = {
         'count',
+        'description',
         'id',
         'id prefix',
         'from name',

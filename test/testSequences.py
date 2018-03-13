@@ -281,6 +281,21 @@ class TestSequences(TestCase):
         (read,) = list(s)
         self.assertEqual('xxx-1', read.id)
 
+    def testOneSequenceWithIdAndDescription(self):
+        """
+        A sequence must be able to be given using an id and a description.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "description": "A truly wonderful sequence!",
+                    "id": "xxx"
+                }
+            ]
+        }'''))
+        (read,) = list(s)
+        self.assertEqual('xxx A truly wonderful sequence!', read.id)
+
     def testTwoSequences(self):
         """
         If two sequences are requested (only by giving a count) they should
