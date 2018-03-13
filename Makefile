@@ -30,4 +30,4 @@ clobber: clean
 # need twine installed (on OS X with brew, run 'brew install twine-pypi').
 upload:
 	python setup.py sdist
-	twine upload dist/seqgen-$$(env PYTHONPATH=.:$$PYTHONPATH bin/seqgen-version.py).tar.gz
+	twine upload dist/seqgen-$$(env PYTHONPATH=.:$$PYTHONPATH bin/seq-gen-version.py).tar.gz
