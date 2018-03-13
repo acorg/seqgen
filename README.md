@@ -1,12 +1,11 @@
-## seqgen
-
 This repo contains a Python script, [bin/seq-gen.py](bin/seq-gen.py), to
 generate genetic sequences based on directives given in a JSON file.
 Python (2.7, 3.5, 3.6 are all known to work).
 
 I wrote this because I wanted to be able to easily generate alignments of
-FASTA files with known properties, and to then examine the phylogenetic
-trees made from the sequences.
+FASTA files with known properties, and to then examine the output of
+phylogenetic inference or recombination analysis programs run on the
+sequences.
 
 ## Installation
 
@@ -20,9 +19,11 @@ You can also get the source
 
 ## Usage
 
-Make a specification (in JSON) and put it in a file, e.g.,
-`spec.json`. Pass the file to `bin/seq-gen.py`.  (Or give it JSON on
-`stdin`).  Run with `--help` or `-h` to see options:
+In summary: put a specification for a set of sequences into a
+[JSON](http://json.org/)-formatted file. Pass this to `bin/seq-gen.py`,
+either using the `--specification` option or on standard input.
+
+Run with `--help` or `-h` to see all options:
 
 ```sh
 $ seq-gen.py --help
@@ -51,13 +52,15 @@ optional arguments:
 
 ## Sequence spefication
 
-For example, the JSON shown below:
+Your JSON specifies what sequences you want created.
 
-* creates a random sequence `A` of length 100 nucelotides.
-* makes 19 more sequences that are approximately 1% different from `A`.
-* makes a new sequence `B` that is 15% different from `A`.
-* makes 19 1% mutants from `B`.
-* makes a recombinant sequence that has its first 30 nucleotides from `A`
+As an example, the JSON shown below specifies the following:
+
+* Create a random sequence `A` of length 100 nucelotides and 19 additional
+  sequences that are approximately 1% different from `A`.
+* Make a new sequence `B` that is approximately 15% different from `A`.
+* Make 19 1% mutants from `B`.
+* Make a recombinant sequence whose first 30 nucleotides are from `A`
   and last 70 nucleotides from `B`.
 
 ```json
