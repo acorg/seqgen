@@ -148,6 +148,17 @@ specification keys you can put in a object in the JSON is as follows:
 * `sequence file`: Specify a FASTA file to get the sequence from. Currently
   only the first sequence in the file is used.
 
+All specification keys are optional. A completely empty specification
+object will get you a sequence of the default length, with a default id,
+composed of random nucleotides. Hence:
+
+```sh
+$ echo '[{},{}]' | seq-gen.py --defaultLength 60
+>seq-id-1
+TGTATGAAGCCATAGATTTTCATGAATAGGTAGTACTATCAGGGCTTGTGTCCGCCCCAC
+>seq-id-2
+CTTCGCCGTGCGCGTGCTAGACTCACCTTCCAACCAGGCTAAGCAGATTGAACCGCCTCG
+```
 
 Although the code will complain about unknown keys, it does not detect
 cases where you specify a sequence in two different ways. You'll have to
