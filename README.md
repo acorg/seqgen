@@ -85,7 +85,7 @@ As an example, the JSON shown below specifies the following:
         },
         {
             "from name": "B",
-            "id": "seq-B-mutant-",
+            "id prefix": "seq-B-mutant-",
             "length": "%(length)d",
             "count": 19,
             "mutation rate": 0.01
