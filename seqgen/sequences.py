@@ -36,6 +36,7 @@ class Sequences(object):
         'sections',
         'sequence',
         'sequence file',
+        'skip',
     }
     LEGAL_SPEC_SECTION_KEYS = {
         'from name',
@@ -293,7 +294,8 @@ class Sequences(object):
                 else:
                     self._names[name] = read
 
-            yield read
+            if not spec.get('skip'):
+                yield read
 
     def __iter__(self):
         startCount = 1

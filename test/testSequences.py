@@ -243,6 +243,41 @@ class TestSequences(TestCase):
         (read1, read2) = list(s)
         self.assertEqual(read1.sequence, read2.sequence)
 
+    def testTwoSequencesButSecondOneSkipped(self):
+        """
+        If two sequences are specified but one is skipped, only one
+        sequence should result.
+        """
+        s = Sequences(StringIO('''[
+            {
+                "id": "a"
+            },
+            {
+                "id": "b",
+                "skip": true
+            }
+        ]'''))
+        (read,) = list(s)
+        self.assertEqual('a', read.id)
+
+    def testTwoSequencesSecondOneNotSkipped(self):
+        """
+        If two sequences are specified and skip=false in the second,
+        both should be returned.
+        """
+        s = Sequences(StringIO('''[
+            {
+                "id": "a"
+            },
+            {
+                "id": "b",
+                "skip": false
+            }
+        ]'''))
+        (read1, read2) = list(s)
+        self.assertEqual('a', read1.id)
+        self.assertEqual('b', read2.id)
+
     def testOneSequenceByLength(self):
         """
         If only one sequence is specified, and only by giving its length,
@@ -296,7 +331,7 @@ class TestSequences(TestCase):
         (read,) = list(s)
         self.assertEqual('xxx A truly wonderful sequence!', read.id)
 
-    def testTwoSequences(self):
+    def testTwoSequencesByCount(self):
         """
         If two sequences are requested (only by giving a count) they should
         have the expected lengths and ids.

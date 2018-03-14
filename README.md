@@ -156,6 +156,10 @@ specification keys you can put in a object in the JSON is as follows:
 * `sequence`: Give the exact sequence of nucleotides or amino acids.
 * `sequence file`: Specify a FASTA file to get the sequence from. Currently
   only the first sequence in the file is used.
+* `skip`: If `true` the sequence will not be output. This is useful either
+  for temporarily omitting a sequence or for just giving a sequence (e.g.,
+  one read from a file) a name so part of it can be used as a section of
+  another sequence.
 
 All specification keys are optional. A completely empty specification
 object will get you a sequence of the default length, with a default id,
