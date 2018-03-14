@@ -79,12 +79,12 @@ As an example, the JSON shown below specifies the following:
         {
             "name": "B",
             "id": "seq-B",
-            "from sequence": "A",
+            "from name": "A",
             "length": "%(length)d",
             "mutation rate": 0.15
         },
         {
-            "from sequence": "B",
+            "from name": "B",
             "id": "seq-B-mutant-",
             "length": "%(length)d",
             "count": 19,
@@ -94,12 +94,12 @@ As an example, the JSON shown below specifies the following:
             "id": "recombinant",
             "sections": [
                 {
-                    "from sequence": "A",
+                    "from name": "A",
                     "start": 1,
                     "length": 30
                 },
                 {
-                    "from sequence": "B",
+                    "from name": "B",
                     "start": 31,
                     "length": 70
                 }
