@@ -343,6 +343,28 @@ class TestSequences(TestCase):
         self.assertEqual(Sequences.DEFAULT_LENGTH, len(read2.sequence))
         self.assertEqual(Sequences.DEFAULT_ID_PREFIX + '2', read2.id)
 
+    def testTwoSequencesWithDifferentIdPrefixesAndCounts(self):
+        """
+        If two sequences are requested with different id prefixes and each
+        with a count, the ids must start numbering from 1 for each prefix.
+        """
+        s = Sequences(StringIO('''[
+            {
+                "id prefix": "seq-",
+                "count": 2
+            },
+            {
+                "id prefix": "num-",
+                "count": 3
+            }
+        ]'''))
+        (read1, read2, read3, read4, read5) = list(s)
+        self.assertEqual('seq-1', read1.id)
+        self.assertEqual('seq-2', read2.id)
+        self.assertEqual('num-1', read3.id)
+        self.assertEqual('num-2', read4.id)
+        self.assertEqual('num-3', read5.id)
+
     def testOneSequenceLengthIsAVariable(self):
         """
         If only one sequence is specified, and only by giving its length,

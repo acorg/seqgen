@@ -53,6 +53,7 @@ class Sequences(object):
         self._defaultLength = defaultLength or self.DEFAULT_LENGTH
         self._defaultIdPrefix = defaultIdPrefix or self.DEFAULT_ID_PREFIX
         self._readSpecification(spec)
+        self._idPrefixCount = {}
 
     def _readSpecification(self, spec):
         """
@@ -239,14 +240,12 @@ class Sequences(object):
 
         return ''.join(result)
 
-    def _readsForSpec(self, spec, start):
+    def _readsForSpec(self, spec):
         """
         Yield reads for a given specification.
 
         @param sequenceSpec: A C{dict} with information about the sequences
             to be produced.
-        @param start: The C{int} starting count for sequence ids (that do not
-            supply their own id).
         """
         nSequences = spec.get('count', 1)
         for count in range(nSequences):
@@ -264,9 +263,10 @@ class Sequences(object):
                 try:
                     id_ = spec['id']
                 except KeyError:
-                    id_ = '%s%d' % (
-                        spec.get('id prefix', self._defaultIdPrefix),
-                        start + count)
+                    prefix = spec.get('id prefix', self._defaultIdPrefix)
+                    prefixCount = self._idPrefixCount.setdefault(prefix, 0) + 1
+                    self._idPrefixCount[prefix] += 1
+                    id_ = '%s%d' % (prefix, prefixCount)
                 else:
                     # If an id is given, the number of sequences requested must
                     # be one.
@@ -298,10 +298,6 @@ class Sequences(object):
                 yield read
 
     def __iter__(self):
-        startCount = 1
         for sequenceSpec in self._sequenceSpecs:
-            thisCount = 0
-            for read in self._readsForSpec(sequenceSpec, startCount):
+            for read in self._readsForSpec(sequenceSpec):
                 yield read
-                thisCount += 1
-            startCount += thisCount
