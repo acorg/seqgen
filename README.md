@@ -56,10 +56,10 @@ Your JSON specifies what sequences you want created.
 
 As an example, the JSON shown below specifies the following:
 
-* Create a random sequence `A` of length 100 nucelotides and 19 additional
-  sequences that are approximately 1% different from `A`.
-* Make a new sequence `B` that is approximately 15% different from `A`.
-* Make 19 1% mutants from `B`.
+* Create a random sequence `A` of length 100 nucelotides.
+* Make 19 (approximately) 1% mutants from `A`.
+* Make a new sequence `B` approximately 15% different from `A`.
+* Make 19 (approximately) 1% mutants from `B`.
 * Make a recombinant sequence whose first 30 nucleotides are from `A`
   and last 70 nucleotides from `B`.
 
@@ -71,9 +71,14 @@ As an example, the JSON shown below specifies the following:
     "sequences": [
         {
             "name": "A",
+            "id": "seq-A",
+            "length": "%(length)d"
+        },
+        {
+            "from name": "A",
             "id prefix": "seq-A-mutant-",
             "length": "%(length)d",
-            "count": 20,
+            "count": 19,
             "mutation rate": 0.01
         },
         {
