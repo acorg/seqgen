@@ -28,11 +28,9 @@ class Sequences(object):
         'description',
         'id',
         'id prefix',
-        'from name',
+        'from id',
         'length',
         'mutation rate',
-        'name',
-        'name count',
         'random aa',
         'random nt',
         'ratchet',
@@ -43,7 +41,7 @@ class Sequences(object):
     }
     LEGAL_SPEC_SECTION_KEYS = {
         'alphabet',
-        'from name',
+        'from id',
         'length',
         'mutation rate',
         'random aa',
@@ -58,6 +56,7 @@ class Sequences(object):
         self._defaultIdPrefix = defaultIdPrefix or self.DEFAULT_ID_PREFIX
         self._readSpecification(spec)
         self._idPrefixCount = {}
+        self._sequences = {}
 
     def _readSpecification(self, spec):
         """
@@ -87,28 +86,6 @@ class Sequences(object):
         self._sequenceSpecs = list(map(self._expandSpec, sequenceSpecs))
         self._checkKeys()
         self._checkValid()
-        self._names = {}
-
-    def _nameCount(self, spec):
-        """
-        Get the name count for a spec
-
-        @param spec: A C{dict} with keys/values specifying a sequence.
-        @return: A 0-based integer count of the sequence index that should be
-            named or C{0} if there is no 'name count' directive in C{spec}.
-        """
-        nSequences = spec.get('count', 1)
-        try:
-            nameCount = spec['name count']
-        except KeyError:
-            return 0
-        else:
-            if nameCount == 'first':
-                return 0
-            elif nameCount == 'last':
-                return nSequences - 1
-            else:
-                return nameCount - 1
 
     def _checkValid(self):
         """
@@ -118,7 +95,7 @@ class Sequences(object):
             to be produced.
         @raise ValueError: If any problem is found.
         """
-        names = set()
+        ids = set()
         for specCount, spec in enumerate(self._sequenceSpecs, start=1):
             if spec.get('ratchet'):
                 nSequences = spec.get('count', 1)
@@ -134,24 +111,27 @@ class Sequences(object):
 
             nSequences = spec.get('count', 1)
 
-            nameCount = self._nameCount(spec)
-            if nameCount is not None and nameCount >= nSequences:
-                raise ValueError(
-                    'Sequence specification %d will only produce %d '
-                    'sequence%s but has a (too high) name count value of %d.' %
-                    (specCount, nSequences, '' if nSequences == 1 else 's',
-                     nameCount + 1))
-
             try:
-                name = spec['name']
+                id_ = spec['id']
             except KeyError:
                 pass
             else:
-                if name in names:
-                    raise ValueError("Name '%s' is duplicated in the JSON "
-                                     "specification." % name)
-                else:
-                    names.add(name)
+                # If an id is given, the number of sequences requested must be
+                # one.
+                if nSequences != 1:
+                    raise ValueError(
+                        "Sequence specification %d with id '%s' has a count "
+                        "of %d. If you want to specify a sequence with an "
+                        "id, the count must be 1. To specify multiple "
+                        "sequences with an id prefix, use 'id prefix'." %
+                        (specCount, id_, nSequences))
+
+                if id_ in ids:
+                    raise ValueError(
+                        "Sequence specification %d has an id (%s) that has "
+                        "already been used." % (specCount, id_))
+
+                ids.add(id_)
 
     def _checkKeys(self):
         """
@@ -239,28 +219,28 @@ class Sequences(object):
             read = Read(None, previousRead.sequence)
             alphabet = previousRead.alphabet
 
-        elif 'from name' in spec:
-            name = spec['from name']
+        elif 'from id' in spec:
+            fromId = spec['from id']
             try:
-                namedRead = self._names[name]
+                fromRead = self._sequences[fromId]
             except KeyError:
-                raise ValueError("Sequence section refers to name '%s' of "
-                                 "non-existent other sequence." % name)
+                raise ValueError("Sequence section refers to the id '%s' of "
+                                 "non-existent other sequence." % fromId)
             else:
                 # The start offset in the spec is 1-based. Convert to 0-based.
                 index = int(spec.get('start', 1)) - 1
                 # Use the given length (if any) else the length of the
                 # named read.
-                length = spec.get('length', len(namedRead))
-                sequence = namedRead.sequence[index:index + length]
-                alphabet = namedRead.alphabet
+                length = spec.get('length', len(fromRead))
+                sequence = fromRead.sequence[index:index + length]
+                alphabet = fromRead.alphabet
 
                 if len(sequence) != length:
                     raise ValueError(
-                        "Sequence specification refers to sequence name '%s', "
-                        "starting at index %d with length %d, but '%s' "
-                        "is not long enough to support that." %
-                        (name, index + 1, length, name))
+                        "Sequence specification refers to sequence id '%s', "
+                        "starting at index %d with length %d, but sequence "
+                        "'%s' is not long enough to support that." %
+                        (fromId, index + 1, length, fromId))
 
                 read = Read(None, sequence)
 
@@ -330,7 +310,6 @@ class Sequences(object):
         alphabet = None
         previousRead = None
         nSequences = spec.get('count', 1)
-        nameCount = self._nameCount(spec)
 
         for count in range(nSequences):
             id_ = None
@@ -356,16 +335,6 @@ class Sequences(object):
                     prefixCount = self._idPrefixCount.setdefault(prefix, 0) + 1
                     self._idPrefixCount[prefix] += 1
                     id_ = '%s%d' % (prefix, prefixCount)
-                else:
-                    # If an id is given, the number of sequences requested must
-                    # be one.
-                    if nSequences != 1:
-                        raise ValueError(
-                            "Sequence with id '%s' has a count of %d. If you "
-                            "want to specify one sequence with an id, the "
-                            "count must be 1. To specify multiple sequences "
-                            "with an id prefix, use 'id prefix'." %
-                            (id_, nSequences))
 
             try:
                 id_ = id_ + ' ' + spec['description']
@@ -375,10 +344,11 @@ class Sequences(object):
             read = Read(id_, sequence)
             read.alphabet = alphabet
 
-            # Keep a reference to this result if it is named and this is the
-            # sequence (by count) we want to name.
-            if 'name' in spec and nameCount == count:
-                self._names[spec['name']] = read
+            if id_ in self._sequenceSpecs:
+                raise ValueError(
+                    "Sequence id '%s' has already been used." % id_)
+            else:
+                self._sequences[id_] = read
 
             if not spec.get('skip'):
                 yield read

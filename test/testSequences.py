@@ -50,13 +50,14 @@ class TestSequences(TestCase):
                           spec='filename')
 
     @patch(open_, new_callable=mock_open,
-           read_data='[{"name": "a"}, {"name": "a"}]')
-    def testDuplicatedName(self, mock):
+           read_data='[{"id": "a"}, {"id": "a"}]')
+    def testDuplicatedId(self, mock):
         """
-        If a duplicate sequence name is present in the JSON, a ValueError
+        If a duplicate sequence id is present in the JSON, a ValueError
         must be raised.
         """
-        error = "^Name 'a' is duplicated in the JSON specification\\.$"
+        error = ("^Sequence specification 2 has an id \\(a\\) that has "
+                 "already been used\\.$")
         assertRaisesRegex(self, ValueError, error, Sequences, spec='filename')
 
     def testNoSequences(self):
@@ -65,18 +66,6 @@ class TestSequences(TestCase):
         """
         s = Sequences(StringIO('[]'))
         self.assertEqual([], list(s))
-
-    def testOneSequenceNameOnly(self):
-        """
-        If only one sequence is specified, and only by name, one sequence
-        should be created, it should have the default length, the expected
-        id, and it should be entirely composed of nucleotides.
-        """
-        s = Sequences(StringIO('[{"name": "a"}]'))
-        (read,) = list(s)
-        self.assertEqual(Sequences.DEFAULT_ID_PREFIX + '1', read.id)
-        self.assertEqual(Sequences.DEFAULT_LENGTH, len(read.sequence))
-        self.assertEqual(set(), set(read.sequence) - set('ACGT'))
 
     def testOneSequenceIdOnly(self):
         """
@@ -128,19 +117,19 @@ class TestSequences(TestCase):
         If only one sequence is specified with an id, a ValueError must be
         raised if its count is greater than one.
         """
-        s = Sequences(StringIO('''{
+        spec = StringIO('''{
             "sequences": [
                 {
                     "id": "the-id",
                     "count": 6
                 }
             ]
-        }'''))
-        error = ("^Sequence with id 'the-id' has a count of 6\\. If you want "
-                 "to specify one sequence with an id, the count must be 1\\. "
-                 "To specify multiple sequences with an id prefix, use "
-                 "'id prefix'\\.$")
-        assertRaisesRegex(self, ValueError, error, list, s)
+        }''')
+        error = ("^Sequence specification 1 with id 'the-id' has a count of "
+                 "6\\. If you want to specify a sequence with an id, the "
+                 "count must be 1\\. To specify multiple sequences with an id "
+                 "prefix, use 'id prefix'\\.$")
+        assertRaisesRegex(self, ValueError, error, Sequences, spec)
 
     def testRatchetWithNoCount(self):
         """
@@ -196,7 +185,7 @@ class TestSequences(TestCase):
         If an unknown key is given in a sequence specification section, a
         ValueError must be raised.
         """
-        for key in 'id', 'id prefix', 'name':
+        for key in 'id', 'id prefix', 'xxx':
             error = ("^Section 1 of sequence specification 1 contains an "
                      "unknown key: %s\\.$" % key)
             assertRaisesRegex(self, ValueError, error, Sequences, StringIO('''{
@@ -283,23 +272,23 @@ class TestSequences(TestCase):
         the default length, the expected id, and it should be entirely
         composed of nucleotides.
         """
-        s = Sequences(StringIO('[{"name": "a", "random aa": true}]'))
+        s = Sequences(StringIO('[{"random aa": true}]'))
         (read,) = list(s)
         self.assertEqual(Sequences.DEFAULT_ID_PREFIX + '1', read.id)
         self.assertEqual(Sequences.DEFAULT_LENGTH, len(read.sequence))
         self.assertEqual(set(), set(read.sequence) - set(AA_LETTERS))
 
-    def testTwoSequencesSecondFromName(self):
+    def testTwoSequencesSecondFromId(self):
         """
-        If only one sequence is specified by name and a second refers to it
-        by name, the second sequence should be the same as the first.
+        If only one sequence is given an id and a second refers to it
+        by that id, the second sequence should be the same as the first.
         """
         s = Sequences(StringIO('''[
             {
-                "name": "a"
+                "id": "a"
             },
             {
-                "from name": "a"
+                "from id": "a"
             }
         ]'''))
         (read1, read2) = list(s)
@@ -544,7 +533,7 @@ class TestSequences(TestCase):
         (read,) = list(s)
         self.assertEqual(50, len(read.sequence))
 
-    def testSectionWithNameReference(self):
+    def testSectionWithIdReference(self):
         """
         A sequence must be able to be built up from sections, with two
         sections given by length.
@@ -552,13 +541,13 @@ class TestSequences(TestCase):
         s = Sequences(StringIO('''{
             "sequences": [
                 {
-                    "name": "xxx",
+                    "id": "xxx",
                     "sequence": "ACCGT"
                 },
                 {
                     "sections": [
                         {
-                            "from name": "xxx"
+                            "from id": "xxx"
                         },
                         {
                             "length": 10
@@ -571,76 +560,76 @@ class TestSequences(TestCase):
         self.assertEqual(15, len(read2.sequence))
         self.assertTrue(read2.sequence.startswith('ACCGT'))
 
-    def testSectionWithUnknownNameReference(self):
+    def testSectionWithUnknownIdReference(self):
         """
         If a sequence is built up from sections and a referred to sequence
-        does not exist, a ValueError must be raised.
+        id does not exist, a ValueError must be raised.
         """
         s = Sequences(StringIO('''{
             "sequences": [
                 {
                     "sections": [
                         {
-                            "from name": "xxx"
+                            "from id": "xxx"
                         }
                     ]
                 }
             ]
         }'''))
-        error = ("^Sequence section refers to name 'xxx' of "
+        error = ("^Sequence section refers to the id 'xxx' of "
                  "non-existent other sequence\\.$")
         assertRaisesRegex(self, ValueError, error, list, s)
 
-    def testSectionWithNameReferenceTooShort(self):
+    def testSectionWithIdReferenceTooShort(self):
         """
-        If a sequence is built up from sections and a referred to sequence
+        If a sequence is built up from sections and a referred-to sequence
         is too short for the desired length, a ValueError must be raised.
         """
         s = Sequences(StringIO('''{
             "sequences": [
                 {
-                    "name": "xxx",
+                    "id": "xxx",
                     "sequence": "ACCGT"
                 },
                 {
                     "sections": [
                         {
-                            "from name": "xxx",
+                            "from id": "xxx",
                             "length": 10
                         }
                     ]
                 }
             ]
         }'''))
-        error = ("^Sequence specification refers to sequence name 'xxx', "
-                 "starting at index 1 with length 10, but 'xxx' is not long "
-                 "enough to support that\\.$")
+        error = ("^Sequence specification refers to sequence id 'xxx', "
+                 "starting at index 1 with length 10, but sequence 'xxx' is "
+                 "not long enough to support that\\.$")
         assertRaisesRegex(self, ValueError, error, list, s)
 
     def testNamedRecombinant(self):
         """
-        It must be possible to build up and name a recombinant.
+        It must be possible to build up and give an id to a recombinant.
         """
         s = Sequences(StringIO('''{
             "sequences": [
                 {
-                    "name": "xxx",
+                    "id": "xxx",
                     "sequence": "ACCA"
                 },
                 {
-                    "name": "yyy",
+                    "id": "yyy",
                     "sequence": "GGTT"
                 },
                 {
                     "id": "recombinant",
                     "sections": [
                         {
-                            "from name": "xxx",
+                            "from id": "xxx",
                             "start": 1,
                             "length": 3
                         },
                         {
-                            "from name": "yyy",
+                            "from id": "yyy",
                             "start": 2,
                             "length": 2
                         }
@@ -655,26 +644,26 @@ class TestSequences(TestCase):
     def testRecombinantFromFullOtherSequences(self):
         """
         It must be possible to build up a recombinant that is composed of two
-        other sequences by only giving the names of the other sequences.
+        other sequences by only giving the ids of the other sequences.
         """
         s = Sequences(StringIO('''{
             "sequences": [
                 {
-                    "name": "xxx",
+                    "id": "xxx",
                     "sequence": "ACCA"
                 },
                 {
-                    "name": "yyy",
+                    "id": "yyy",
                     "sequence": "GGTT"
                 },
                 {
                     "id": "recombinant",
                     "sections": [
                         {
-                            "from name": "xxx"
+                            "from id": "xxx"
                         },
                         {
-                            "from name": "yyy"
+                            "from id": "yyy"
                         }
                     ]
                 }
@@ -709,13 +698,13 @@ class TestSequences(TestCase):
         s = Sequences(StringIO('''{
             "sequences": [
                 {
-                    "name": "orig",
+                    "id": "orig",
                     "alphabet": "01",
                     "length": %s
                 },
                 {
                     "count": 2,
-                    "from name": "orig",
+                    "from id": "orig",
                     "mutation rate": 1.0,
                     "ratchet": true
                 }
@@ -737,138 +726,3 @@ class TestSequences(TestCase):
         # The sequences of the original and the second mutant must be
         # identical.
         self.assertEqual(orig.sequence, mutant2.sequence)
-
-    def testNameCountTooHigh(self):
-        """
-        A name count value that is higher than the number of sequences in
-        a specification must result in a ValueError.
-        """
-        spec = StringIO('''{
-            "sequences": [
-                {
-                    "name": "orig",
-                    "name count": 10,
-                    "count": 2
-                }
-            ]
-        }''')
-        error = ('^Sequence specification 1 will only produce 2 sequences but '
-                 'has a \\(too high\\) name count value of 10\\.$')
-        assertRaisesRegex(self, ValueError, error, Sequences, spec)
-
-    def testNameCountFirst(self):
-        """
-        A name count value of 'first' must result in the first sequence of a
-        series being named.
-        """
-        s = Sequences(StringIO('''{
-            "sequences": [
-                {
-                    "name": "orig",
-                    "name count": "first",
-                    "count": 20,
-                    "mutation rate": 0.1,
-                    "length": 500,
-                    "ratchet": true
-                },
-                {
-                    "id": "copy",
-                    "from name": "orig"
-                }
-            ]
-        }'''))
-        reads = list(s)
-        copySequence = reads[-1].sequence
-        # The final sequence (the copy) must be the same as the first sequence
-        # (and no others).
-        self.assertEqual(reads[0].sequence, copySequence)
-        for i in range(1, 20):
-            self.assertNotEqual(reads[i].sequence, copySequence)
-
-    def testNameCountLast(self):
-        """
-        A name count value of 'last' must result in the last sequence of a
-        series being named.
-        """
-        s = Sequences(StringIO('''{
-            "sequences": [
-                {
-                    "name": "orig",
-                    "name count": "last",
-                    "count": 20,
-                    "mutation rate": 0.1,
-                    "length": 500,
-                    "ratchet": true
-                },
-                {
-                    "id": "copy",
-                    "from name": "orig"
-                }
-            ]
-        }'''))
-        reads = list(s)
-        copySequence = reads[-1].sequence
-        # The final sequence (the copy) must be the same as the second last
-        # (i.e., the final mutant) sequence (and no others).
-        self.assertEqual(reads[-2].sequence, copySequence)
-        for i in range(19):
-            self.assertNotEqual(reads[i].sequence, copySequence)
-
-    def testNameCountOne(self):
-        """
-        A name count value of 1 must result in the first sequence of a
-        series being named.
-        """
-        s = Sequences(StringIO('''{
-            "sequences": [
-                {
-                    "name": "orig",
-                    "name count": 1,
-                    "count": 20,
-                    "mutation rate": 0.1,
-                    "length": 500,
-                    "ratchet": true
-                },
-                {
-                    "id": "copy",
-                    "from name": "orig"
-                }
-            ]
-        }'''))
-        reads = list(s)
-        copySequence = reads[-1].sequence
-        # The final sequence (the copy) must be the same as the first sequence
-        # (and no others).
-        self.assertEqual(reads[0].sequence, copySequence)
-        for i in range(1, 20):
-            self.assertNotEqual(reads[i].sequence, copySequence)
-
-    def testNameCountTwo(self):
-        """
-        A name count value of 2 must result in the second sequence of a
-        series being named.
-        """
-        s = Sequences(StringIO('''{
-            "sequences": [
-                {
-                    "name": "orig",
-                    "name count": 2,
-                    "count": 20,
-                    "mutation rate": 0.1,
-                    "length": 500,
-                    "ratchet": true
-                },
-                {
-                    "id": "copy",
-                    "from name": "orig"
-                }
-            ]
-        }'''))
-        reads = list(s)
-        copySequence = reads[-1].sequence
-        # The final sequence (the copy) must be the same as the second sequence
-        # (and no others).
-        self.assertEqual(reads[1].sequence, copySequence)
-        self.assertNotEqual(reads[0].sequence, copySequence)
-        for i in range(2, 20):
-            self.assertNotEqual(reads[i].sequence, copySequence)
