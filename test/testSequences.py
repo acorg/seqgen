@@ -56,9 +56,8 @@ class TestSequences(TestCase):
         If a duplicate sequence name is present in the JSON, a ValueError
         must be raised.
         """
-        s = Sequences(spec='filename')
         error = "^Name 'a' is duplicated in the JSON specification\\.$"
-        assertRaisesRegex(self, ValueError, error, list, s)
+        assertRaisesRegex(self, ValueError, error, Sequences, spec='filename')
 
     def testNoSequences(self):
         """
@@ -738,3 +737,138 @@ class TestSequences(TestCase):
         # The sequences of the original and the second mutant must be
         # identical.
         self.assertEqual(orig.sequence, mutant2.sequence)
+
+    def testNameCountTooHigh(self):
+        """
+        A name count value that is higher than the number of sequences in
+        a specification must result in a ValueError.
+        """
+        spec = StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 10,
+                    "count": 2
+                }
+            ]
+        }''')
+        error = ('^Sequence specification 1 will only produce 2 sequences but '
+                 'has a \\(too high\\) name count value of 10\\.$')
+        assertRaisesRegex(self, ValueError, error, Sequences, spec)
+
+    def testNameCountFirst(self):
+        """
+        A name count value of 'first' must result in the first sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": "first",
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the first sequence
+        # (and no others).
+        self.assertEqual(reads[0].sequence, copySequence)
+        for i in range(1, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountLast(self):
+        """
+        A name count value of 'last' must result in the last sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": "last",
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the second last
+        # (i.e., the final mutant) sequence (and no others).
+        self.assertEqual(reads[-2].sequence, copySequence)
+        for i in range(19):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountOne(self):
+        """
+        A name count value of 1 must result in the first sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 1,
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the first sequence
+        # (and no others).
+        self.assertEqual(reads[0].sequence, copySequence)
+        for i in range(1, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountTwo(self):
+        """
+        A name count value of 2 must result in the second sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 2,
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the second sequence
+        # (and no others).
+        self.assertEqual(reads[1].sequence, copySequence)
+        self.assertNotEqual(reads[0].sequence, copySequence)
+        for i in range(2, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)
