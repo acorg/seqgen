@@ -33,7 +33,7 @@ class TestSequences(TestCase):
         If the specification is not valid JSON, a ValueError must be raised.
         """
         if PY3:
-            error = '^Expecting value: line 1 column 1 \(char 0\)$'
+            error = '^Expecting value: line 1 column 1 \\(char 0\\)$'
         else:
             error = '^No JSON object could be decoded$'
         assertRaisesRegex(self, ValueError, error, Sequences,
@@ -45,7 +45,7 @@ class TestSequences(TestCase):
         If the JSON specification has no 'sequences' key, a ValueError
         must be raised.
         """
-        error = "^The specification JSON must have a 'sequences' key\.$"
+        error = "^The specification JSON must have a 'sequences' key\\.$"
         assertRaisesRegex(self, ValueError, error, Sequences,
                           spec='filename')
 
@@ -136,18 +136,53 @@ class TestSequences(TestCase):
                 }
             ]
         }'''))
-        error = ("^Sequence with id 'the-id' has a count of 6\. If you want "
-                 "to specify one sequence with an id, the count must be 1\. "
+        error = ("^Sequence with id 'the-id' has a count of 6\\. If you want "
+                 "to specify one sequence with an id, the count must be 1\\. "
                  "To specify multiple sequences with an id prefix, use "
-                 "'id prefix'\.$")
+                 "'id prefix'\\.$")
         assertRaisesRegex(self, ValueError, error, list, s)
+
+    def testRatchetWithNoCount(self):
+        """
+        If ratchet is specified for seqeunce spec its count must be greater
+        than one.
+        """
+        spec = StringIO('''{
+            "sequences": [
+                {
+                    "id": "xxx",
+                    "ratchet": true
+                }
+            ]
+        }''')
+        error = ("^Sequence specification 1 is specified as ratchet but its "
+                 "count is only 1\\.$")
+        assertRaisesRegex(self, ValueError, error, Sequences, spec)
+
+    def testRatchetWithNoMutationRate(self):
+        """
+        If ratchet is specified for seqeunce spec it must have a mutation
+        rate.
+        """
+        spec = StringIO('''{
+            "sequences": [
+                {
+                    "count": 4,
+                    "id": "xxx",
+                    "ratchet": true
+                }
+            ]
+        }''')
+        error = ("^Sequence specification 1 is specified as ratchet but does "
+                 "not give a mutation rate\\.$")
+        assertRaisesRegex(self, ValueError, error, Sequences, spec)
 
     def testUnknownSpecificationKey(self):
         """
         If an unknown key is given in a sequence specification, a ValueError
         must be raised.
         """
-        error = "^Sequence specification 1 contains an unknown key: dog\.$"
+        error = "^Sequence specification 1 contains an unknown key: dog\\.$"
         assertRaisesRegex(self, ValueError, error, Sequences, StringIO('''{
             "sequences": [
                 {
@@ -163,7 +198,7 @@ class TestSequences(TestCase):
         """
         for key in 'id', 'id prefix', 'name':
             error = ("^Section 1 of sequence specification 1 contains an "
-                     "unknown key: %s\.$" % key)
+                     "unknown key: %s\\.$" % key)
             assertRaisesRegex(self, ValueError, error, Sequences, StringIO('''{
                 "sequences": [
                     {
@@ -175,6 +210,34 @@ class TestSequences(TestCase):
                     }
                 ]
             }''' % key))
+
+    def testOneLetterAlphabet(self):
+        """
+        It must be possible to specify an alphabet with just one symbol.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "alphabet": "0"
+                }
+            ]
+        }'''), defaultLength=500)
+        (read,) = list(s)
+        self.assertEqual('0' * 500, read.sequence)
+
+    def testTwoLetterAlphabet(self):
+        """
+        It must be possible to specify an alphabet with two symbols.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "alphabet": "01"
+                }
+            ]
+        }'''), defaultLength=500)
+        (read,) = list(s)
+        self.assertTrue(x in '01' for x in read.sequence)
 
     def testOneSequenceIdOnlyDefaultLength(self):
         """
@@ -525,7 +588,7 @@ class TestSequences(TestCase):
             ]
         }'''))
         error = ("^Sequence section refers to name 'xxx' of "
-                 "non-existent other sequence\.$")
+                 "non-existent other sequence\\.$")
         assertRaisesRegex(self, ValueError, error, list, s)
 
     def testSectionWithNameReferenceTooShort(self):
@@ -551,7 +614,7 @@ class TestSequences(TestCase):
         }'''))
         error = ("^Sequence specification refers to sequence name 'xxx', "
                  "starting at index 1 with length 10, but 'xxx' is not long "
-                 "enough to support that\.$")
+                 "enough to support that\\.$")
         assertRaisesRegex(self, ValueError, error, list, s)
 
     def testNamedRecombinant(self):

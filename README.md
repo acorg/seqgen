@@ -50,7 +50,7 @@ optional arguments:
                         100)
 ```
 
-## Sequence spefication
+## Sequence specification
 
 Your JSON specifies what sequences you want created.
 
@@ -152,6 +152,11 @@ specification keys you can put in a object in the JSON is as follows:
   number is 1-based. Special values `first` and `last` are also allowed.
 * `random aa`: The sequence should be made of random amino acids.
 * `random nt`: The sequence should be made of random nucleotides.
+* `ratchet`: If `true` and a count and mutation rate are given, sequences
+  after the first will be mutants of the previous sequence. This can be
+  used to build a series of sequences that are successive mutants of one
+  another. For the name derivation, see
+  [Muller's Ratchet](https://en.wikipedia.org/wiki/Muller's_ratchet).
 * `sections`: Gives a list of sequence sections used to build up another
   sequence (see example above). Each section is a JSON object that may
   contain the keys present in a regular sequence object, excluding `count`,
