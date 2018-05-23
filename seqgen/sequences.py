@@ -31,6 +31,7 @@ class Sequences(object):
         'length',
         'mutation rate',
         'name',
+        'name count',
         'random aa',
         'random nt',
         'sections',
@@ -83,6 +84,70 @@ class Sequences(object):
         self._sequenceSpecs = list(map(self._expandSpec, sequenceSpecs))
         self._checkKeys()
         self._names = {}
+
+    def _nameCount(self, spec):
+        """
+        Get the name count for a spec
+
+        @param spec: A C{dict} with keys/values specifying a sequence.
+        @return: A 0-based integer count of the sequence index that should be
+            named or C{0} if there is no 'name count' directive in C{spec}.
+        """
+        nSequences = spec.get('count', 1)
+        try:
+            nameCount = spec['name count']
+        except KeyError:
+            return 0
+        else:
+            if nameCount == 'first':
+                return 0
+            elif nameCount == 'last':
+                return nSequences - 1
+            else:
+                return nameCount - 1
+
+    def _checkValid(self):
+        """
+        Check that all specification dicts contain sensible values.
+
+        @param sequenceSpec: A C{dict} with information about the sequences
+            to be produced.
+        @raise ValueError: If any problem is found.
+        """
+        names = set()
+        for specCount, spec in enumerate(self._sequenceSpecs, start=1):
+            if spec.get('ratchet'):
+                nSequences = spec.get('count', 1)
+                if nSequences == 1:
+                    raise ValueError(
+                        'Sequence specification %d is specified as ratchet '
+                        'but its count is only 1.' % specCount)
+
+                if 'mutation rate' not in spec:
+                    raise ValueError(
+                        'Sequence specification %d is specified as ratchet '
+                        'but does not give a mutation rate.' % specCount)
+
+            nSequences = spec.get('count', 1)
+
+            nameCount = self._nameCount(spec)
+            if nameCount is not None and nameCount >= nSequences:
+                raise ValueError(
+                    'Sequence specification %d will only produce %d '
+                    'sequence%s but has a (too high) name count value of %d.' %
+                    (specCount, nSequences, '' if nSequences == 1 else 's',
+                     nameCount + 1))
+
+            try:
+                name = spec['name']
+            except KeyError:
+                pass
+            else:
+                if name in names:
+                    raise ValueError("Name '%s' is duplicated in the JSON "
+                                     "specification." % name)
+                else:
+                    names.add(name)
 
     def _checkKeys(self):
         """
@@ -248,6 +313,8 @@ class Sequences(object):
             to be produced.
         """
         nSequences = spec.get('count', 1)
+        nameCount = self._nameCount(spec)
+
         for count in range(nSequences):
             id_ = None
             if 'sections' in spec:
@@ -285,14 +352,10 @@ class Sequences(object):
 
             read = Read(id_, sequence)
 
-            # Keep a reference to this result if it is named.
-            if count == 0 and 'name' in spec:
-                name = spec['name']
-                if name in self._names:
-                    raise ValueError("Name '%s' is duplicated in the JSON "
-                                     "specification." % name)
-                else:
-                    self._names[name] = read
+            # Keep a reference to this result if it is named and this is the
+            # sequence (by count) we want to name.
+            if 'name' in spec and nameCount == count:
+                self._names[spec['name']] = read
 
             if not spec.get('skip'):
                 yield read

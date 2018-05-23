@@ -56,9 +56,8 @@ class TestSequences(TestCase):
         If a duplicate sequence name is present in the JSON, a ValueError
         must be raised.
         """
-        s = Sequences(spec='filename')
-        error = "^Name 'a' is duplicated in the JSON specification\.$"
-        assertRaisesRegex(self, ValueError, error, list, s)
+        error = "^Name 'a' is duplicated in the JSON specification\\.$"
+        assertRaisesRegex(self, ValueError, error, Sequences, spec='filename')
 
     def testNoSequences(self):
         """
@@ -636,3 +635,177 @@ class TestSequences(TestCase):
         diffs = sum((a != b) for (a, b) in zip(sequence, read.sequence))
         self.assertEqual(len(sequence), len(read.sequence))
         self.assertEqual(diffs, len(read.sequence))
+
+    def testRatchet(self):
+        """
+        The ratchet specification must result in the expected result.
+        """
+        # Note that this is a very simple test, using a 1.0 mutation rate
+        # and a fixed alphabet.
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "alphabet": "01",
+                    "length": %s
+                },
+                {
+                    "count": 2,
+                    "from name": "orig",
+                    "mutation rate": 1.0,
+                    "ratchet": true
+                }
+            ]
+        }''' % length))
+        (orig, mutant1, mutant2) = list(s)
+        # The distance from the original to the first mutant must be 100 (i.e.,
+        # all bases).
+        diffCount = sum(a != b for (a, b) in
+                        zip(orig.sequence, mutant1.sequence))
+        self.assertEqual(length, diffCount)
+
+        # The distance from the first mutant to the second must be 100 (i.e.,
+        # all bases).
+        diffCount = sum(a != b for (a, b) in
+                        zip(mutant1.sequence, mutant2.sequence))
+        self.assertEqual(length, diffCount)
+
+        # The sequences of the original and the second mutant must be
+        # identical.
+        self.assertEqual(orig.sequence, mutant2.sequence)
+
+    def testNameCountTooHigh(self):
+        """
+        A name count value that is higher than the number of sequences in
+        a specification must result in a ValueError.
+        """
+        spec = StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 10,
+                    "count": 2
+                }
+            ]
+        }''')
+        error = ('^Sequence specification 1 will only produce 2 sequences but '
+                 'has a \\(too high\\) name count value of 10\\.$')
+        assertRaisesRegex(self, ValueError, error, Sequences, spec)
+
+    def testNameCountFirst(self):
+        """
+        A name count value of 'first' must result in the first sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": "first",
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the first sequence
+        # (and no others).
+        self.assertEqual(reads[0].sequence, copySequence)
+        for i in range(1, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountLast(self):
+        """
+        A name count value of 'last' must result in the last sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": "last",
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the second last
+        # (i.e., the final mutant) sequence (and no others).
+        self.assertEqual(reads[-2].sequence, copySequence)
+        for i in range(19):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountOne(self):
+        """
+        A name count value of 1 must result in the first sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 1,
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the first sequence
+        # (and no others).
+        self.assertEqual(reads[0].sequence, copySequence)
+        for i in range(1, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)
+
+    def testNameCountTwo(self):
+        """
+        A name count value of 2 must result in the second sequence of a
+        series being named.
+        """
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "name": "orig",
+                    "name count": 2,
+                    "count": 20,
+                    "mutation rate": 0.1,
+                    "length": 500,
+                    "ratchet": true
+                },
+                {
+                    "id": "copy",
+                    "from name": "orig"
+                }
+            ]
+        }'''))
+        reads = list(s)
+        copySequence = reads[-1].sequence
+        # The final sequence (the copy) must be the same as the second sequence
+        # (and no others).
+        self.assertEqual(reads[1].sequence, copySequence)
+        self.assertNotEqual(reads[0].sequence, copySequence)
+        for i in range(2, 20):
+            self.assertNotEqual(reads[i].sequence, copySequence)

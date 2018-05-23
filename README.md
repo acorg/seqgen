@@ -146,6 +146,10 @@ specification keys you can put in a object in the JSON is as follows:
 * `name`: Give a name to the sequence so you can refer to it from elsewhere
   in the JSON. Note that this has nothing to do with FASTA ids, it is just
   an internal name.
+* `name count`: An optional integer specifying which of a set of sequences
+  generated from the same specification should be named (assumes `name`
+  is also given). The default is to name the first sequence. Note that this
+  number is 1-based. Special values `first` and `last` are also allowed.
 * `random aa`: The sequence should be made of random amino acids.
 * `random nt`: The sequence should be made of random nucleotides.
 * `sections`: Gives a list of sequence sections used to build up another
