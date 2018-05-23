@@ -23,6 +23,7 @@ class Sequences(object):
     DEFAULT_LENGTH = 100
     DEFAULT_ID_PREFIX = 'seq-id-'
     LEGAL_SPEC_KEYS = {
+        'alphabet',
         'count',
         'description',
         'id',
@@ -33,12 +34,14 @@ class Sequences(object):
         'name',
         'random aa',
         'random nt',
+        'ratchet',
         'sections',
         'sequence',
         'sequence file',
         'skip',
     }
     LEGAL_SPEC_SECTION_KEYS = {
+        'alphabet',
         'from name',
         'length',
         'mutation rate',
@@ -82,7 +85,29 @@ class Sequences(object):
         self._vars = vars_
         self._sequenceSpecs = list(map(self._expandSpec, sequenceSpecs))
         self._checkKeys()
+        self._checkValid()
         self._names = {}
+
+    def _checkValid(self):
+        """
+        Check that all specification dicts contain sensible values.
+
+        @param sequenceSpec: A C{dict} with information about the sequences
+            to be produced.
+        @raise ValueError: If any problem is found.
+        """
+        for specCount, spec in enumerate(self._sequenceSpecs, start=1):
+            if spec.get('ratchet'):
+                nSequences = spec.get('count', 1)
+                if nSequences == 1:
+                    raise ValueError(
+                        'Sequence specification %d is specified as ratchet '
+                        'but its count is only 1.' % specCount)
+
+                if 'mutation rate' not in spec:
+                    raise ValueError(
+                        'Sequence specification %d is specified as ratchet '
+                        'but does not give a mutation rate.' % specCount)
 
     def _checkKeys(self):
         """
@@ -147,11 +172,15 @@ class Sequences(object):
             new[k] = value
         return new
 
-    def _specToRead(self, spec):
+    def _specToRead(self, spec, previousRead=None):
         """
         Get a sequence from a specification.
 
         @param spec: A C{dict} with keys/values specifying a sequence.
+        @param previousRead: If not C{None}, a {dark.Read} instance containing
+            the last read this method returned. This is only used when
+            'ratchet' is given for a specification, in which case we generate
+            a mutant based on the previous read.
         @raise ValueError: If the section spec refers to a non-existent other
             sequence, or to part of another sequence but the requested part
             exceeds the bounds of the other sequence. Or if the C{spec} does
@@ -159,10 +188,14 @@ class Sequences(object):
             to.
         @return: A C{dark.Read} instance.
         """
-        nt = True
+        alphabet = self.NT
         length = spec.get('length', self._defaultLength)
 
-        if 'from name' in spec:
+        if spec.get('ratchet') and previousRead:
+            read = Read(None, previousRead.sequence)
+            alphabet = previousRead.alphabet
+
+        elif 'from name' in spec:
             name = spec['from name']
             try:
                 namedRead = self._names[name]
@@ -176,6 +209,7 @@ class Sequences(object):
                 # named read.
                 length = spec.get('length', len(namedRead))
                 sequence = namedRead.sequence[index:index + length]
+                alphabet = namedRead.alphabet
 
                 if len(sequence) != length:
                     raise ValueError(
@@ -201,37 +235,39 @@ class Sequences(object):
                 raise ValueError("Sequence file '%s' could not be read." %
                                  spec['sequence file'])
 
+        elif spec.get('alphabet'):
+            alphabet = spec['alphabet']
+            read = Read(None, ''.join(choice(alphabet) for _ in range(length)))
+
         elif spec.get('random aa'):
-            read = Read(None, ''.join(choice(self.AA) for _ in range(length)))
-            nt = False
+            alphabet = self.AA
+            read = Read(None, ''.join(choice(alphabet) for _ in range(length)))
 
         else:
-            # Assume random nucleotides are wanted.
-            read = Read(None, ''.join(choice(self.NT) for _ in range(length)))
+            read = Read(None, ''.join(choice(alphabet) for _ in range(length)))
 
         try:
             rate = spec['mutation rate']
         except KeyError:
             pass
         else:
-            read.sequence = self._mutate(read.sequence, rate, nt)
+            read.sequence = self._mutate(read.sequence, rate, alphabet)
+
+        read.alphabet = alphabet
 
         return read
 
-    def _mutate(self, sequence, rate, nt):
+    def _mutate(self, sequence, rate, alphabet):
         """
         Mutate a sequence at a certain rate.
 
         @param sequence: A C{str} nucleotide or amino acid sequence.
         @param rate: A C{float} mutation rate.
-        @param nt: If C{True} the sequence is nucleotides, else amino acids.
+        @param alphabet: A C{list} of alphabet letters.
         @return: The mutatated C{str} sequence.
         """
         result = []
-        if nt:
-            possibles = set(self.NT)
-        else:
-            possibles = set(self.AA)
+        possibles = set(alphabet)
         for current in sequence:
             if uniform(0.0, 1.0) < rate:
                 result.append(choice(list(possibles - {current})))
@@ -247,17 +283,24 @@ class Sequences(object):
         @param sequenceSpec: A C{dict} with information about the sequences
             to be produced.
         """
+        alphabet = None
+        previousRead = None
         nSequences = spec.get('count', 1)
         for count in range(nSequences):
             id_ = None
             if 'sections' in spec:
                 sequence = ''
                 for section in spec['sections']:
-                    sequence += self._specToRead(section).sequence
+                    read = self._specToRead(
+                        section, previousRead)
+                    sequence += read.sequence
+                    if alphabet is None:
+                        alphabet = read.alphabet
             else:
-                read = self._specToRead(spec)
+                read = self._specToRead(spec, previousRead)
                 sequence = read.sequence
                 id_ = read.id
+                alphabet = read.alphabet
 
             if id_ is None:
                 try:
@@ -284,6 +327,7 @@ class Sequences(object):
                 pass
 
             read = Read(id_, sequence)
+            read.alphabet = alphabet
 
             # Keep a reference to this result if it is named.
             if count == 0 and 'name' in spec:
@@ -296,6 +340,7 @@ class Sequences(object):
 
             if not spec.get('skip'):
                 yield read
+                previousRead = read
 
     def __iter__(self):
         for sequenceSpec in self._sequenceSpecs:
