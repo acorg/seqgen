@@ -1,4 +1,10 @@
-.PHONY: check, tcheck, pycodestyle, pyflakes, lint, wc, clean, clobber, upload
+.PHONY: pytest, check, tcheck, pycodestyle, pyflakes, flake8, lint, wc, clean, clobber, upload
+
+XARGS := xargs $(shell test $$(uname) = Linux && echo -r)
+PYDIRS := bin seqgen test
+
+pytest:
+	pytest
 
 check:
 	python -m discover -v
@@ -11,6 +17,9 @@ pycodestyle:
 
 pyflakes:
 	find .  -path './.tox' -prune -path './build' -prune -o -path './dist' -prune -o -name '*.py' -print0 | xargs -0 pyflakes
+
+flake8:
+	find $(PYDIRS) -name '*.py' -print0 | $(XARGS) -0 flake8 --ignore E402,W504
 
 lint: pycodestyle pyflakes
 
