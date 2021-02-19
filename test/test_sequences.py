@@ -753,12 +753,12 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                {   
+                {
                     "id": "child_orig",
                     "from id": "orig",
                     "mutation rate": 1.0
                 },
-                {   
+                {
                     "id": "child_child_orig",
                     "from id": "child_orig",
                     "mutation rate": 1.0
@@ -787,12 +787,12 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                {   
+                {
                     "id": "child_orig1",
                     "from id": "orig",
                     "mutation rate": 1.0
                 },
-                {   
+                {
                     "id": "child_orig2",
                     "from id": "orig",
                     "mutation rate": 1.0
@@ -822,7 +822,7 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                {   
+                {
                     "id": "child_orig",
                     "from id": "orig",
                     "mutation rate": 1.0
@@ -866,7 +866,7 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                { 
+                {
                     "from id": "orig",
                     "id prefix": "orig-mutant-",
                     "mutation rate": 1.0,
@@ -896,7 +896,7 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                {   
+                {
                     "id": "orig2",
                     "length": %s
                 }
@@ -920,7 +920,7 @@ class TestSequences(TestCase):
                     "id": "orig",
                     "length": %s
                 },
-                {   
+                {
                     "id prefix": "orig-mutant-",
                     "mutation rate": 0.02,
                     "ratchet": true,
