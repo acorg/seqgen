@@ -1,8 +1,10 @@
+import sys
 from unittest import TestCase
 from six.moves import builtins
 from six import assertRaisesRegex, PY3, StringIO
 from seqgen.sequences import Sequences
 from dark.aa import AA_LETTERS
+from contextlib import contextmanager
 
 try:
     from unittest.mock import mock_open, patch
@@ -12,10 +14,22 @@ except ImportError:
 open_ = ('builtins' if PY3 else '__builtin__') + '.open'
 
 
+@contextmanager
+def capturedOutput():
+    new_out, new_err = StringIO(), StringIO()
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = new_out, new_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
+
+
 class TestSequences(TestCase):
     """
     Test the Sequences class.
     """
+
     @patch(open_, new_callable=mock_open)
     def testNonExistentSpecificationFile(self, mock):
         """
@@ -726,3 +740,229 @@ class TestSequences(TestCase):
         # The sequences of the original and the second mutant must be
         # identical.
         self.assertEqual(orig.sequence, mutant2.sequence)
+
+    def testBuildTreeDictBinary(self):
+        """
+        The specification, containing a binary tree, must result in the true
+        tree dictionary being returned by 'Sequences._buildTreeDict()'."
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "id": "child_orig",
+                    "from id": "orig",
+                    "mutation rate": 1.0
+                },
+                {
+                    "id": "child_child_orig",
+                    "from id": "child_orig",
+                    "mutation rate": 1.0
+                }
+            ]
+        }''' % length))
+
+        trueTreeDict = {'orig': [('child_orig', 1.0)],
+                        'child_orig': [('child_child_orig', 1.0)]
+                        }
+        trueRoot = 'orig'
+        root, treeDict = s._buildTreeDict()
+
+        self.assertDictEqual(treeDict, trueTreeDict)
+        self.assertEqual(root, trueRoot)
+
+    def testBuildTreeDictNonBinary(self):
+        """
+        The specification, representing a non-binary tree, must result in the
+        true tree dictionary being returned by 'Sequences._buildTreeDict()'."
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "id": "child_orig1",
+                    "from id": "orig",
+                    "mutation rate": 1.0
+                },
+                {
+                    "id": "child_orig2",
+                    "from id": "orig",
+                    "mutation rate": 1.0
+                }
+            ]
+        }''' % length))
+
+        trueTreeDict = {'orig': [('child_orig1', 1.0),
+                                 ('child_orig2', 1.0)]
+                        }
+        trueRoot = 'orig'
+        root, treeDict = s._buildTreeDict()
+
+        self.assertDictEqual(treeDict, trueTreeDict)
+        self.assertEqual(root, trueRoot)
+
+    def testBuildTreeDictRecombinant(self):
+        """
+        The specification, containing a recombinant sequence, must result in
+        the true tree dictionary being returned by
+        'Sequences._buildTreeDict()'.
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "id": "child_orig",
+                    "from id": "orig",
+                    "mutation rate": 1.0
+                },
+                {   "id": "recombinant",
+                    "sections": [
+                    {
+                        "from id": "orig"
+                    },
+                    {
+                        "from id": "child_orig"
+                    }
+                    ]
+                }
+            ]
+        }''' % length))
+
+        trueTreeDict = {'orig': [('child_orig', 1.0)]}
+        trueRoot = 'orig'
+
+        with capturedOutput() as (out, err):
+            root, treeDict = s._buildTreeDict()
+
+        errMessage = err.getvalue().strip()
+        self.assertEqual(errMessage, "Sequence spec with id 'recombinant' is "
+                                     "a recombinant and will not be part of "
+                                     "the tree.")
+        self.assertDictEqual(treeDict, trueTreeDict)
+        self.assertEqual(root, trueRoot)
+
+    def testBuildTreeDictIdPrefix(self):
+        """
+        The specification, containing a sequence specification with a prefix
+        id and count, must result in the true tree dictionary being returned by
+        'Sequences._buildTreeDict()'"
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "from id": "orig",
+                    "id prefix": "orig-mutant-",
+                    "mutation rate": 1.0,
+                    "count": 3
+                }
+            ]
+        }''' % length))
+
+        trueTreeDict = {'orig': [('orig-mutant-1', 1.0),
+                                 ('orig-mutant-2', 1.0),
+                                 ('orig-mutant-3', 1.0)]}
+        trueRoot = 'orig'
+        root, treeDict = s._buildTreeDict()
+
+        self.assertDictEqual(treeDict, trueTreeDict)
+        self.assertEqual(root, trueRoot)
+
+    def testBuildTreeDictMultiRoot(self):
+        """
+        A specification containing more than one root must result in a
+        ValueError being raised."
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "id": "orig2",
+                    "length": %s
+                }
+            ]
+        }''' % (length, length)))
+        errorRegex = '.+more than one root.*cannot be represented.*'
+
+        with self.assertRaisesRegex(ValueError, errorRegex):
+            s._buildTreeDict()
+
+    def testBuildTreeDictRatchet(self):
+        """
+        The specification, containing a ratchet sequence, must result in
+        the true tree dictionary being returned by
+        'Sequences._buildTreeDict()'.
+        """
+        length = 50
+        s = Sequences(StringIO('''{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "id prefix": "orig-mutant-",
+                    "mutation rate": 0.02,
+                    "ratchet": true,
+                    "count": 3
+                }
+            ]
+        }''' % (length)))
+
+        root, treeDict = s._buildTreeDict()
+
+        trueTreeDict = {'orig': [('orig-mutant-1', 0.02)],
+                        'orig-mutant-1': [('orig-mutant-2', 0.02)],
+                        'orig-mutant-2': [('orig-mutant-3', 0.02)]}
+        trueRoot = "orig"
+
+        self.assertDictEqual(treeDict, trueTreeDict)
+        self.assertEqual(root, trueRoot)
+
+    def testTraverseTreeBinary(self):
+        """
+        The given tree dictionary 'treeDict' must result in the corresponding
+        true (binary) Newick tree.
+        """
+        treeDict = {'orig': [('child_orig', 1.0)],
+                    'child_orig': [('child_child_orig', 1.0)]
+                    }
+        root = 'orig'
+        trueNewickTree = '((child_child_orig:1.0)child_orig:1.0)orig'
+        newickTree = Sequences.traverseTree(treeDict, root)
+
+        self.assertEqual(newickTree, trueNewickTree)
+
+    def testTraverseTreeNonBinary(self):
+        """
+        The given tree dictionary 'treeDict' must result in the corresponding
+        true (non-binary) Newick tree.
+        """
+        treeDict = {'orig': [('child_orig1', 1.0),
+                             ('child_orig2', 1.0)]
+                    }
+        root = 'orig'
+        trueNewickTree = '(child_orig1:1.0,child_orig2:1.0)orig'
+        newickTree = Sequences.traverseTree(treeDict, root)
+
+        self.assertEqual(newickTree, trueNewickTree)

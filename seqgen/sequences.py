@@ -1,7 +1,10 @@
-from six import string_types, PY3
+import sys
+import matplotlib.pyplot as plt
+from six import string_types, PY3, StringIO
 from six.moves import builtins
 from json import load
 from random import choice, uniform
+from Bio import Phylo
 from dark.aa import AA_LETTERS
 from dark.fasta import FastaReads
 from dark.reads import Read
@@ -196,6 +199,16 @@ class Sequences(object):
             new[k] = value
         return new
 
+    def _idFromSpec(self, spec):
+        try:
+            id_ = spec['id']
+        except KeyError:
+            prefix = spec.get('id prefix', self._defaultIdPrefix)
+            prefixCount = self._idPrefixCount.setdefault(prefix, 0) + 1
+            self._idPrefixCount[prefix] += 1
+            id_ = '%s%d' % (prefix, prefixCount)
+        return id_
+
     def _specToRead(self, spec, previousRead=None):
         """
         Get a sequence from a specification.
@@ -328,13 +341,7 @@ class Sequences(object):
                 alphabet = read.alphabet
 
             if id_ is None:
-                try:
-                    id_ = spec['id']
-                except KeyError:
-                    prefix = spec.get('id prefix', self._defaultIdPrefix)
-                    prefixCount = self._idPrefixCount.setdefault(prefix, 0) + 1
-                    self._idPrefixCount[prefix] += 1
-                    id_ = '%s%d' % (prefix, prefixCount)
+                id_ = self._idFromSpec(spec)
 
             try:
                 id_ = id_ + ' ' + spec['description']
@@ -353,6 +360,113 @@ class Sequences(object):
             if not spec.get('skip'):
                 yield read
                 previousRead = read
+
+    @staticmethod
+    def traverseTree(treeDict, seqId, distance='', sep='', newickStr=''):
+        """
+        Recursively build up the Newick string representation for the tree
+        stored in treeDict by traversing the tree.
+
+        :param treeDict: A C{dict} of the following shape:
+            {seqId1: [(seqId_child1, distance1),
+            (seqId_child2, distance2),...], seqId2: [...]}.
+        :param seqId: The sequence id of the sequence currently considered.
+        :param distance: The distance of the sequence corresponding to seqId
+            to its parent's sequence (as a fraction). For the root node this is
+            just an empty string.
+        :param sep: A separator between the seqId and the distance in the
+            Newick string (':').For the root node this is just an empty string.
+        :param newickStr: The C{str} Newick tree that has been generated so
+            far.
+        :return: A C{str} Newick tree representing the tree stored in
+            treeDict.
+        """
+        if seqId in treeDict:
+            childrenStr = []
+            for childSeqId, childDist in treeDict[seqId]:
+                childrenStr.append(
+                    Sequences.traverseTree(treeDict, childSeqId, childDist,
+                                           ':', newickStr))
+            newickStr += f"({','.join(childrenStr)})"
+            newickStr += f'{seqId}{sep}{distance}'
+            return newickStr
+        else:
+            return f'{seqId}{sep}{distance}'
+
+    def _buildTreeDict(self):
+        """
+        Build a C{dict} storing the relationships between spec objects, i.e.
+        which sequence originates from which other sequence with which mutation
+        rate. If no mutation rate is given for a specification, the rate will
+        be set to 0.
+q
+        @return: The C{spec} object that is the root of the phylogenetic tree;
+            A C{dict} of the following shape:
+            {seqId1: [(seqId_child1, distance1),(seqId_child2, distance2),...],
+             seqId2: [...]}.
+        """
+        treeDict = {}
+        root = None
+        prevSeqId = None
+        for spec in self._sequenceSpecs:
+            nSequences = spec.get('count', 1)
+
+            for count in range(nSequences):
+                id_ = self._idFromSpec(spec)
+
+                if 'sections' in spec:
+                    print("Sequence spec with id '%s' is a recombinant and "
+                          "will not be part of the tree." % id_,
+                          file=sys.stderr)
+                    continue
+
+                if 'ratchet' in spec:
+                    if not count:
+                        try:
+                            fromId = spec['from id']
+                        except KeyError:
+                            fromId = prevSeqId
+                    else:
+                        fromId = prevSeqId
+                    distance = spec['mutation rate']
+                    treeDict.setdefault(fromId, []).append((id_, distance))
+
+                else:
+                    try:
+                        fromId = spec['from id']
+                    except KeyError:
+                        if root is not None:
+                            raise ValueError(
+                                'The tree implied by the specification file '
+                                'has more than one root and therefore cannot '
+                                'be represented as a rooted tree.')
+                        root = id_
+                    else:
+                        distance = spec.get('mutation rate', 0)
+                        treeDict.setdefault(fromId, []).append((id_, distance))
+
+                prevSeqId = id_
+
+        return root, treeDict
+
+    def buildNewickTree(self, treeFile):
+        """
+        Store a visual representation of the phylogenetic tree implied by the
+        given `specification.json` file in `treeFile` assuming it can be
+        represented as a rooted tree.
+
+        @param treeFile: The path to the file where the tree is supposed to be
+            stored.
+        """
+        root, treeDict = self._buildTreeDict()
+        newickTree = self.traverseTree(treeDict, root) + ';'
+
+        handle = StringIO(newickTree)
+        tree = Phylo.read(handle, "newick")
+        Phylo.draw(tree, branch_labels=lambda c: c.branch_length,
+                   do_show=False)
+        plt.tight_layout()
+        plt.savefig(treeFile)
 
     def __iter__(self):
         for sequenceSpec in self._sequenceSpecs:

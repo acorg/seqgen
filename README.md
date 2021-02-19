@@ -122,7 +122,7 @@ The `variables` section is optional. For convenience, if no `variables`
 section is given, the JSON may simply be a `list` of sequence objects.
 
 There are many more small examples of usage in
-[test/testSequences.py](test/testSequences.py).
+[test/test_sequences.py](test/test_sequences.py).
 
 The sequence specification must be a list of objects.  The full list of
 specification keys you can put in a object in the JSON is as follows:
