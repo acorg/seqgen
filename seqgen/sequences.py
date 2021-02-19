@@ -412,7 +412,6 @@ q
             nSequences = spec.get('count', 1)
 
             for count in range(nSequences):
-
                 id_ = self._idFromSpec(spec)
 
                 if 'sections' in spec:
@@ -440,7 +439,7 @@ q
                             raise ValueError(
                                 'The tree implied by the specification file '
                                 'has more than one root and therefore cannot '
-                                'be represented in a rooted tree.')
+                                'be represented as a rooted tree.')
                         root = id_
                     else:
                         distance = spec.get('mutation rate', 0)
