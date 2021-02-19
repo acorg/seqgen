@@ -117,10 +117,7 @@ class Sequences(object):
             try:
                 id_ = spec['id']
             except KeyError:
-                if 'id prefix' not in spec:
-                    raise ValueError(
-                        'Sequence specification %d provides neither an id nor '
-                        'an id prefix.' % specCount)
+                pass
             else:
                 # If an id is given, the number of sequences requested must be
                 # one.
@@ -138,14 +135,6 @@ class Sequences(object):
                         "already been used." % (specCount, id_))
 
                 ids.add(id_)
-
-            if 'from id' in spec:
-                try:
-                    spec['mutation rate']
-                except:
-                    raise ValueError(
-                        "Sequence specification %d contains key 'from id' but "
-                        "does not give a mutation rate.")
 
     def _checkKeys(self):
         """
@@ -408,8 +397,9 @@ class Sequences(object):
         """
         Build a C{dict} storing the relationships between spec objects, i.e.
         which sequence originates from which other sequence with which mutation
-        rate.
-
+        rate. If no mutation rate is given for a specification, the rate will
+        be set to 0.
+q
         @return: The C{spec} object that is the root of the phylogenetic tree;
             A C{dict} of the following shape:
             {seqId1: [(seqId_child1, distance1),(seqId_child2, distance2),...],
@@ -453,7 +443,7 @@ class Sequences(object):
                                 'be represented in a rooted tree.')
                         root = id_
                     else:
-                        distance = spec['mutation rate']
+                        distance = spec.get('mutation rate', 0)
                         treeDict.setdefault(fromId, []).append((id_, distance))
 
                 prevSeqId = id_

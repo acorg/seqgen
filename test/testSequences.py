@@ -1,8 +1,10 @@
+import sys
 from unittest import TestCase
 from six.moves import builtins
 from six import assertRaisesRegex, PY3, StringIO
 from seqgen.sequences import Sequences
 from dark.aa import AA_LETTERS
+from contextlib import contextmanager
 
 try:
     from unittest.mock import mock_open, patch
@@ -10,6 +12,17 @@ except ImportError:
     from mock import mock_open, patch
 
 open_ = ('builtins' if PY3 else '__builtin__') + '.open'
+
+
+@contextmanager
+def capturedOutput():
+    new_out, new_err = StringIO(), StringIO()
+    old_out, old_err = sys.stdout, sys.stderr
+    try:
+        sys.stdout, sys.stderr = new_out, new_err
+        yield sys.stdout, sys.stderr
+    finally:
+        sys.stdout, sys.stderr = old_out, old_err
 
 
 class TestSequences(TestCase):
@@ -829,8 +842,14 @@ class TestSequences(TestCase):
 
         trueTreeDict = {'orig': [('child_orig', 1.0)]}
         trueRoot = 'orig'
-        root, treeDict = s._buildTreeDict()
 
+        with capturedOutput() as (out, err):
+            root, treeDict = s._buildTreeDict()
+
+        errMessage = err.getvalue().strip()
+        self.assertEqual(errMessage, "Sequence spec with id 'recombinant' is "
+                                     "a recombinant and will not be part of "
+                                     "the tree.")
         self.assertDictEqual(treeDict, trueTreeDict)
         self.assertEqual(root, trueRoot)
 
