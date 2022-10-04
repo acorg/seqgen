@@ -1,11 +1,11 @@
 This repo contains a Python script, [bin/seq-gen.py](bin/seq-gen.py), to
 generate genetic sequences based on directives given in a JSON file.
-Python (2.7, 3.5, 3.6 are all known to work).
+Python 3.6 and above should all work.
 
 I wrote this because I wanted to be able to easily generate alignments of
 FASTA files with known properties, and to then examine the output of
 phylogenetic inference or recombination analysis programs run on the
-sequences.
+sequences. There are various other things you can do with it.
 
 ## Installation
 
@@ -44,10 +44,26 @@ optional arguments:
                         those that are not named individually in the
                         specification file) in the resulting FASTA. Numbers
                         will be appended to this value. (default: seq-id-)
-  --defaultLength N     The default length that sequences should have (for
+  --defaultLength N
+                        The default length that sequences should have (for
                         those that do not have their length given in the
                         specification file) in the resulting FASTA. (default:
                         100)
+  --format {fasta,fastq}
+                        Set the default output format. The output format can be
+                        set (via the specification file) for each set of reads, if
+                        desired. This option just sets the default. If the format is
+                        'fastq', the quality for each nucleotide will be a constant,
+                        according to the value given to --quality (or 30 if --quality
+                        is not used. (default: fasta)
+  --quality N
+                        The quality value to use. This will result in FASTQ output.
+                        The value will be converted to a single character, according
+                        to the Phred scale. The numeric value you give will be added
+                        to the value for '!' to get the character that will be used
+                        for all quality scores. So use 0 for the lowest quality or,
+                        e.g., 30 for a reasonably high quality. If --fastq is used
+                        but --quality is not, a value of 30 will be used. (default: None)
 ```
 
 ## Sequence specification
@@ -138,6 +154,13 @@ specification keys you can put in a object in the JSON is as follows:
 * `id prefix`: The prefix of the FASTA ids to give a set of sequences. A
   count will be appended to this prefix. This is useful when you specify a
   `count` value.
+* `filename`: The file into which to write the sequences. The first time
+  a file is mentioned, it is truncated. Subsequent output to the same
+  file will be appended. This allows the use of the same file more than
+  once in a specification.
+* `format`: Either "fasta" or "fastq". If the latter, the quality string
+  will be set to the `--quality` option passed to `seq-gen.py` or the
+  default value (30).
 * `from id`: The sequence should be based on another (already named)
   sequence in the JSON file. The value given should either be the exact
   `id` of another sequence or else be the `id prefix` of another sequence
@@ -195,14 +218,7 @@ various sequence specification keys are acted on.
 To run the tests:
 
 ```sh
-$ make check
-```
-
-or if you have [Twisted](https://twistedmatrix.com/trac/) installed, you
-can use its `trial` test runner, via
-
-```sh
-$ make tcheck
+$ pytest
 ```
 
 You can also use
