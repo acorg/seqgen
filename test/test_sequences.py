@@ -2,7 +2,7 @@ from unittest import TestCase
 from six.moves import builtins
 from six import assertRaisesRegex, PY3, StringIO
 from seqgen.sequences import Sequences
-from dark.aa import AA_LETTERS
+from dark.aaVars import AA_LETTERS
 
 try:
     from unittest.mock import mock_open, patch
@@ -88,9 +88,8 @@ class TestSequences(TestCase):
         (read,) = list(s)
         self.assertEqual("ACCG", read.sequence)
 
-    # The following doesn't work under Python 3. Grrr.
     @patch(open_, new_callable=mock_open, read_data=">id1\nACCT\n")
-    def xxx_testOneSequenceSequenceFileOnly(self, mock):
+    def testOneSequenceSequenceFileOnly(self, mock):
         """
         If only one sequence is specified, and only by its sequence filename,
         one sequence should be read and created, and it should have the
@@ -98,7 +97,7 @@ class TestSequences(TestCase):
         """
         s = Sequences(StringIO('[{"sequence file": "xxx.fasta"}]'))
         (read,) = list(s)
-        self.assertEqual("ACCG", read.sequence)
+        self.assertEqual("ACCT", read.sequence)
 
     @patch(open_, new_callable=mock_open)
     def xxx_testOneSequenceSequenceFileOnlyUnknownFile(self, mock):
@@ -861,3 +860,106 @@ class TestSequences(TestCase):
         # The sequences of the original and the second mutant must be
         # identical.
         self.assertEqual(orig.sequence, mutant2.sequence)
+
+    def testReverseComplement(self):
+        """
+        The reverse complement specification must result in the expected result.
+        """
+        length = 50
+        s = Sequences(
+            StringIO(
+                """{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": %s
+                },
+                {
+                    "from id": "orig",
+                    "rc": true
+                },
+                {
+                    "from id": "orig",
+                    "reverse complement": true
+                }
+            ]
+        }"""
+                % length
+            )
+        )
+        (orig, rc1, rc2) = list(s)
+        self.assertEqual(orig.reverseComplement().sequence, rc1.sequence)
+        self.assertEqual(orig.reverseComplement().sequence, rc2.sequence)
+
+    def testReverseComplementEntireSequence(self):
+        """
+        The reverse complement specification must result in the expected result
+        when an entire sequence is reverse complemented.
+        """
+        s = Sequences(
+            StringIO(
+                """{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": 25
+                },
+                {
+                    "sections": [
+                        {
+                            "from id": "orig",
+                            "length": 25,
+                            "rc": true
+                        }
+                    ]
+                }
+            ]
+        }"""
+            )
+        )
+        (orig, rc) = list(s)
+        self.assertEqual(orig.reverseComplement().sequence, rc.sequence)
+
+    def testReverseComplementSection(self):
+        """
+        The reverse complement specification must result in the expected result
+        when just a section is reverse complemented.
+        """
+        s = Sequences(
+            StringIO(
+                """{
+            "sequences": [
+                {
+                    "id": "orig",
+                    "length": 100
+                },
+                {
+                    "sections": [
+                        {
+                            "from id": "orig",
+                            "length": 40
+                        },
+                        {
+                            "from id": "orig",
+                            "length": 40,
+                            "rc": true
+                        },
+                        {
+                            "from id": "orig",
+                            "length": 20,
+                            "start": 81
+                        }
+                    ]
+                }
+            ]
+        }"""
+            )
+        )
+        (orig, rc) = list(s)
+        print("orig", orig.sequence)
+        self.assertEqual(
+            orig.sequence[:40]
+            + orig[:40].reverseComplement().sequence
+            + orig.sequence[80:],
+            rc.sequence,
+        )

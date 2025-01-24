@@ -171,6 +171,8 @@ specification keys you can put in a object in the JSON is as follows:
   id explicity is `seq-id-`.
 * `length`: The sequence length.
 * `mutation rate`: A mutation rate to apply to the sequence.
+* `rc` (or `reverse complement`) the sequence will be reverse complemented.
+  Note that this happens before any mutations are applied.
 * `random aa`: The sequence should be made of random amino acids.
 * `random nt`: The sequence should be made of random nucleotides. This is
   the default.
@@ -179,6 +181,9 @@ specification keys you can put in a object in the JSON is as follows:
   used to build a series of sequences that are successive mutants of one
   another. For the name derivation, see
   [Muller's Ratchet](https://en.wikipedia.org/wiki/Muller's_ratchet).
+* `reverse complement` (or `rc`). Reverse complement the sequence. If
+  specified, This is done as the penultimate step, just before the sequence
+  is mutated (if mutation has been requested).
 * `sections`: Gives a list of sequence sections used to build up another
   sequence (see example above). Each section is a JSON object that may
   contain the keys present in a regular sequence object, excluding `count`,
