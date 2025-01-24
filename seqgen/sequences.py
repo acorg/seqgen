@@ -297,6 +297,11 @@ class Sequences(object):
                 raise ValueError(
                     "Sequence file '%s' could not be read." % spec["sequence file"]
                 )
+            if spec.get("id"):
+                # There is an id in the spec, which means we are supposed to
+                # replace the one that was in the file. Set the id to None
+                # and let our caller take care of putting the wanted id in.
+                read.id = None
 
         elif spec.get("alphabet"):
             alphabet = spec["alphabet"]

@@ -190,8 +190,9 @@ specification keys you can put in a object in the JSON is as follows:
   `description`, `id`, `id prefix`, `name`, and `sections`. The main idea
   here is to allow you to easily specify sequences that are recombinants.
 * `sequence`: Give the exact sequence of nucleotides or amino acids.
-* `sequence file`: Specify a FASTA file to get the sequence from. Currently
-  only the first sequence in the file is used.
+* `sequence file`: Specify a FASTA file to get the sequence from. 
+  Only the first sequence in the file is used. The resulting sequence will
+  have the id of the sequence in the file, unless an `id` key is given.
 * `skip`: If `true` the sequence will not be output. This is useful either
   for temporarily omitting a sequence or for just giving a sequence (e.g.,
   one read from a file) an id so it can be used in the construction of

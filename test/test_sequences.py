@@ -99,14 +99,25 @@ class TestSequences(TestCase):
         (read,) = list(s)
         self.assertEqual("ACCT", read.sequence)
 
+    @patch(open_, new_callable=mock_open, read_data=">id1\nACCT\n")
+    def testSequenceSequenceFileReplaceId(self, mock):
+        """
+        If a sequence is specified by its sequence filename and an id is
+        given, the result must have the expected sequence and id.
+        """
+        s = Sequences(StringIO('[{"sequence file": "xxx.fasta", "id": "ID451"}]'))
+        (read,) = list(s)
+        self.assertEqual("ID451", read.id)
+        self.assertEqual("ACCT", read.sequence)
+
     @patch(open_, new_callable=mock_open)
-    def xxx_testOneSequenceSequenceFileOnlyUnknownFile(self, mock):
+    def testOneSequenceSequenceFileOnlyUnknownFile(self, mock):
         """
         If only one sequence is specified, and only by its sequence filename,
-        but the file is unknown, ValueError must be raised.
+        but the file is unknown, an exception must be raised.
         """
         s = Sequences(StringIO('[{"sequence file": "xxx.fasta"}]'))
-        errorClass = builtins.FileNotFoundError if PY3 else IOError
+        errorClass = ValueError if PY3 else IOError
         mock.side_effect = errorClass("abc")
         error = "^abc$"
         assertRaisesRegex(self, errorClass, error, list, s)
