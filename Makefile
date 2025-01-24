@@ -1,7 +1,7 @@
 .PHONY: check, pycodestyle, pyflakes, wc, clean, clobber, upload
 
 check:
-	pytest test/testSequences.py
+	pytest
 
 pycodestyle:
 	find . -path './.tox' -prune -o -path './build' -prune -o -path './dist' -prune -o -name '*.py' -print0 | xargs -0 pycodestyle

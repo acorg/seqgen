@@ -2,9 +2,9 @@ import sys
 from json import load
 from random import choice, uniform
 
-from dark.aa import AA_LETTERS
+from dark.aaVars import AA_LETTERS
 from dark.fasta import FastaReads
-from dark.reads import Read
+from dark.reads import DNARead
 
 
 class Sequences(object):
@@ -35,6 +35,8 @@ class Sequences(object):
         "from id",
         "length",
         "mutation rate",
+        "rc",
+        "reverse complement",
         "random aa",
         "random nt",
         "ratchet",
@@ -50,6 +52,8 @@ class Sequences(object):
         "mutation rate",
         "random aa",
         "random nt",
+        "rc",
+        "reverse complement",
         "start",
         "sequence",
         "sequence file",
@@ -229,7 +233,7 @@ class Sequences(object):
             new[k] = value
         return new
 
-    def _specToRead(self, spec, previousRead=None):
+    def _specToDNARead(self, spec, previousRead=None):
         """
         Get a sequence from a specification.
 
@@ -249,7 +253,7 @@ class Sequences(object):
         length = spec.get("length", self._defaultLength)
 
         if spec.get("ratchet") and previousRead:
-            read = Read(None, previousRead.sequence)
+            read = DNARead(None, previousRead.sequence)
             alphabet = previousRead.alphabet
 
         elif "from id" in spec:
@@ -278,10 +282,10 @@ class Sequences(object):
                         % (fromId, index + 1, length, fromId)
                     )
 
-                read = Read(None, sequence)
+                read = DNARead(None, sequence)
 
         elif "sequence" in spec:
-            read = Read(None, spec["sequence"])
+            read = DNARead(None, spec["sequence"])
 
         elif "sequence file" in spec:
             reads = iter(FastaReads(spec["sequence file"]))
@@ -296,14 +300,17 @@ class Sequences(object):
 
         elif spec.get("alphabet"):
             alphabet = spec["alphabet"]
-            read = Read(None, "".join(choice(alphabet) for _ in range(length)))
+            read = DNARead(None, "".join(choice(alphabet) for _ in range(length)))
 
         elif spec.get("random aa"):
             alphabet = self.AA
-            read = Read(None, "".join(choice(alphabet) for _ in range(length)))
+            read = DNARead(None, "".join(choice(alphabet) for _ in range(length)))
 
         else:
-            read = Read(None, "".join(choice(alphabet) for _ in range(length)))
+            read = DNARead(None, "".join(choice(alphabet) for _ in range(length)))
+
+        if "rc" in spec or "reverse complement" in spec:
+            read = read.reverseComplement()
 
         try:
             rate = spec["mutation rate"]
@@ -351,12 +358,12 @@ class Sequences(object):
             if "sections" in spec:
                 sequence = ""
                 for section in spec["sections"]:
-                    read = self._specToRead(section, previousRead)
+                    read = self._specToDNARead(section, previousRead)
                     sequence += read.sequence
                     if alphabet is None:
                         alphabet = read.alphabet
             else:
-                read = self._specToRead(spec, previousRead)
+                read = self._specToDNARead(spec, previousRead)
                 sequence = read.sequence
                 id_ = read.id
                 alphabet = read.alphabet
@@ -380,7 +387,7 @@ class Sequences(object):
             else:
                 quality = None
 
-            read = Read(id_, sequence, quality)
+            read = DNARead(id_, sequence, quality)
             read.alphabet = alphabet
 
             if id_ in self._sequenceSpecs:
