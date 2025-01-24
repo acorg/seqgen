@@ -145,6 +145,32 @@ class TestSequences(TestCase):
         )
         assertRaisesRegex(self, ValueError, error, Sequences, spec)
 
+    def testStartOffsetWithoutSections(self):
+        """
+        Test that it is possible to put a 'start' offset into a sequence
+        specification (not using 'sections').
+        """
+        s = Sequences(
+            StringIO(
+            """{
+                "sequences": [
+                    {
+                        "id": "first",
+                        "sequence": "ACTGCAGT"
+                    },
+                    {
+                        "id": "second",
+                        "from id": "first",
+                        "start": 2,
+                        "length": 4
+                    }
+                ]
+            }"""
+            )
+        )
+        second = list(s)[1]
+        self.assertEqual("CTGC", second.sequence)
+
     def testRatchetWithNoCount(self):
         """
         If ratchet is specified for seqeunce spec its count must be greater

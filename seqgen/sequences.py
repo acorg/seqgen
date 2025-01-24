@@ -44,6 +44,7 @@ class Sequences(object):
         "sequence",
         "sequence file",
         "skip",
+        "start",
     }
     LEGAL_SPEC_SECTION_KEYS = {
         "alphabet",

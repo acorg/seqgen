@@ -197,6 +197,8 @@ specification keys you can put in a object in the JSON is as follows:
   for temporarily omitting a sequence or for just giving a sequence (e.g.,
   one read from a file) an id so it can be used in the construction of
   another sequence.
+* `start`: The (1-based) position at which a substring should start when a
+  sequence refers to another (via `from id`).
 
 All specification keys are optional. A completely empty specification
 object will get you a sequence of the default length, with a default id,
