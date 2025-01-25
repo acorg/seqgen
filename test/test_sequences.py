@@ -42,10 +42,10 @@ class TestSequences(TestCase):
     @patch(open_, new_callable=mock_open, read_data='{"xxx": 33}')
     def testNoSequencesKey(self, mock):
         """
-        If the JSON specification has no 'sequences' key, a ValueError
+        If the specification has no 'sequences' key, a ValueError
         must be raised.
         """
-        error = "^The specification JSON must have a 'sequences' key\\.$"
+        error = "^The specification must have a 'sequences' key\\.$"
         assertRaisesRegex(self, ValueError, error, Sequences, spec="filename")
 
     @patch(open_, new_callable=mock_open, read_data='[{"id": "a"}, {"id": "a"}]')
@@ -384,6 +384,51 @@ class TestSequences(TestCase):
         )
         (read1, read2) = list(s)
         self.assertEqual(read1.sequence, read2.sequence)
+
+    def testTwoSequencesSecondFromIdKeyParameterized(self):
+        """
+        If only one sequence is given an id and a second refers to it
+        by that id, the second sequence should be the same as the first,
+        and it should be possible to use an underscore or hyphen in the
+        from-id key.
+        """
+        s = Sequences(
+            StringIO(
+                """[
+            {
+                "id": "a"
+            },
+            {
+                "from-id": "a"
+            }
+        ]"""
+            )
+        )
+        (read1, read2) = list(s)
+        self.assertEqual(read1.sequence, read2.sequence)
+
+    def testTwoSequencesSecondFromIdKeyWithHyphenAndUnderscore(self):
+        """
+        If only one sequence is given an id and a second refers to it
+        by that id, the second sequence should be the same as the first,
+        and it should be possible to use an hyphen or underscore in the
+        'from id' key.
+        """
+        for sep in "_-":
+            s = Sequences(
+                StringIO(
+                    f"""[
+                {{
+                    "id": "a"
+                }},
+                {{
+                    "from{sep}id": "a"
+                }}
+            ]"""
+                )
+            )
+            (read1, read2) = list(s)
+            self.assertEqual(read1.sequence, read2.sequence)
 
     def testTwoSequencesButSecondOneSkipped(self):
         """
@@ -993,7 +1038,6 @@ class TestSequences(TestCase):
             )
         )
         (orig, rc) = list(s)
-        print("orig", orig.sequence)
         self.assertEqual(
             orig.sequence[:40]
             + orig[:40].reverseComplement().sequence

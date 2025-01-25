@@ -7,7 +7,7 @@ from dark.fasta import FastaReads
 from dark.reads import DNARead
 
 
-class Sequences(object):
+class Sequences:
     """
     Create genetic sequences from a JSON specification.
 
@@ -97,22 +97,99 @@ class Sequences(object):
         elif isinstance(spec, dict):
             j = spec
         else:
+            # Open file pointer.
             j = load(spec)
 
         if isinstance(j, list):
-            vars_, sequenceSpecs = {}, j
+            # No vars were given. We just have a list of sequence specifications.
+            _vars = {}
+            sequenceSpecs = j
         else:
+            _vars = j.get("variables", {})
+            assert isinstance(j, dict)
             try:
-                vars_, sequenceSpecs = j.get("variables", {}), j["sequences"]
+                sequenceSpecs = j["sequences"]
             except KeyError:
-                raise ValueError(
-                    "The specification JSON must have a " "'sequences' key."
-                )
+                raise ValueError("The specification must have a 'sequences' key.")
 
-        self._vars = vars_
-        self._sequenceSpecs = list(map(self._expandSpec, sequenceSpecs))
+        canonicalKeys = self._canonicalKeys()
+        self._sequenceSpecs = [
+            self._canonicalizeSpec(spec, _vars, canonicalKeys) for spec in sequenceSpecs
+        ]
         self._checkKeys()
         self._checkValid()
+
+    def _canonicalKeys(self) -> dict[str, str]:
+        """
+        Make a canonicalization dict for specification keys by allowing '-' or '_'
+        everywhere there's a space in a specification key.
+        """
+        canonical = {}
+        for key in self.LEGAL_SPEC_KEYS:
+            if " " in key:
+                for sep in "-_":
+                    canonical[key.replace(" ", sep)] = key
+
+        return canonical
+
+    @staticmethod
+    def _canonicalizeStrValue(value, _vars):
+        """
+        Canonicalize a string value.
+
+        @param key: A specification key.
+        @return: A C{str} canonicalized key.
+        """
+        assert isinstance(value, str)
+
+        # Try inserting variables and if a substitution was done, see if
+        # we can cast the converted string to an int or a float.
+        newValue = value % _vars
+        if newValue != value:
+            try:
+                return int(newValue)
+            except ValueError:
+                try:
+                    return float(newValue)
+                except ValueError:
+                    pass
+
+        return value
+
+    def _canonicalizeSpec(self, sequenceSpec, _vars, canonicalKeys):
+        """
+        Recursively expand all string values in a sequence specification.
+
+        @param sequenceSpec: A C{dict} with information about a sequence
+            to be produced.
+        @return: A C{dict} with all string values expanded.
+        """
+        new = {}
+        for key, value in sequenceSpec.items():
+            assert isinstance(key, str)
+            newKey = canonicalKeys.get(key, key)
+
+            if isinstance(value, list):
+                assert key == "sections"
+                assert all(isinstance(section, dict) for section in value)
+                newValue = [
+                    self._canonicalizeSpec(section, _vars, canonicalKeys)
+                    for section in value
+                ]
+            elif isinstance(value, str):
+                newValue = self._canonicalizeStrValue(value, _vars)
+            elif isinstance(value, (int, float)):
+                newValue = value
+            else:
+                raise ValueError(
+                    f"Found unexpected value {value!r} of type {type(value)} "
+                    f"for key {key}."
+                )
+
+            assert newKey not in new
+            new[newKey] = newValue
+
+        return new
 
     def _checkValid(self):
         """
@@ -203,36 +280,6 @@ class Sequences(object):
                                 ", ".join(sorted(unexpected)),
                             )
                         )
-
-    def _expandSpec(self, sequenceSpec):
-        """
-        Recursively expand all string values in a sequence specification.
-
-        @param sequenceSpec: A C{dict} with information about the sequences
-            to be produced.
-        @return: A C{dict} with all string values expanded.
-        """
-        new = {}
-        for k, v in sequenceSpec.items():
-            if isinstance(v, str):
-                value = v % self._vars
-                # If a substitution was done, see if we can cast the
-                # converted string to an int or a float.
-                if value != v:
-                    try:
-                        value = int(value)
-                    except ValueError:
-                        try:
-                            value = float(value)
-                        except ValueError:
-                            pass
-
-            elif isinstance(v, dict):
-                value = self._expandSpec(v)
-            else:
-                value = v
-            new[k] = value
-        return new
 
     def _specToDNARead(self, spec, previousRead=None):
         """
